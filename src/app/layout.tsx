@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Neon Type | Cyberpunk Typing Speed Test",
+  title: "Typing Speed Test",
   description: "Advanced typing speed test with cyberpunk aesthetics.",
 };
 
