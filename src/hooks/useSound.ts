@@ -4,64 +4,100 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 
 export const useSound = (enabled: boolean = true) => {
   const audioContextRef = useRef<AudioContext | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
 
-  // Initialize AudioContext on first user interaction to handle autoplay policies
-  const initAudio = useCallback(() => {
+  // Initialize and load sound
+  const initAudio = useCallback(async () => {
     if (!enabled) return;
+
+    // Create Context
     if (!audioContextRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         audioContextRef.current = new AudioCtx();
       }
     }
-    if (audioContextRef.current?.state === 'suspended') {
-      audioContextRef.current.resume();
+
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    // Load buffer if not loaded
+    if (!bufferRef.current) {
+      try {
+        const response = await fetch('/sounds/click.mp3');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const arrayBuffer = await response.arrayBuffer();
+        bufferRef.current = await ctx.decodeAudioData(arrayBuffer);
+      } catch (error) {
+        console.error('Failed to load sound:', error);
+        // Fallback to synthesis if load fails is handled in playClick checks
+      }
     }
   }, [enabled]);
 
   const playClick = useCallback(() => {
     if (!enabled || !audioContextRef.current) return;
-
     const ctx = audioContextRef.current;
-    const t = ctx.currentTime;
 
-    // Create a "click" sound using an oscillator and noise buffer
-    // Mechanical switch sound is complex, but we can approximate a "thock"
+    if (bufferRef.current) {
+      // Play from buffer (Real Sound)
+      const source = ctx.createBufferSource();
+      source.buffer = bufferRef.current;
 
-    // 1. Comparison tone (high click)
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+      // Randomize pitch slightly for realism
+      source.playbackRate.value = 0.95 + Math.random() * 0.1;
 
-    osc.frequency.setValueAtTime(600, t);
-    osc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0.3 + Math.random() * 0.1; // Randomize volume
 
-    gain.gain.setValueAtTime(0.15, t); // Lower volume
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      source.start(0);
+    } else {
+      // Fallback Synthesis (Better "Thock")
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
 
-    osc.start(t);
-    osc.stop(t + 0.05);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
 
-    // 2. Body tone (lower thud)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc2.type = 'square';
-    osc2.frequency.setValueAtTime(150, t);
-    osc2.frequency.exponentialRampToValueAtTime(50, t + 0.05);
+      osc.start(t);
+      osc.stop(t + 0.1);
 
-    gain2.gain.setValueAtTime(0.1, t);
-    gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+      // Add noise burst for "click"
+      const bufferSize = ctx.sampleRate * 0.01; // 10ms
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
 
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.value = 0.1;
 
-    osc2.start(t);
-    osc2.stop(t + 0.05);
-
+      noise.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(t);
+    }
   }, [enabled]);
+
+  // Preload on mount
+  useEffect(() => {
+    if (enabled) initAudio();
+  }, [enabled, initAudio]);
 
   return { playClick, initAudio };
 };
