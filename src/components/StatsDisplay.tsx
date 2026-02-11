@@ -4,15 +4,9 @@ import { useTypingStore } from "@/store/useTypingStore";
 import { calculateWPM, calculateAccuracy } from "@/lib/utils"; // Make sure explicit import if used, or use store values if pre-calced
 
 export default function StatsDisplay() {
-  const {
-    correctCharCount,
-    errorCharCount,
-    totalKeystrokes,
-    timeRemaining,
-    timerDuration,
-  } = useTypingStore();
+  const { correctCharCount, errorCharCount, totalKeystrokes, timeElapsed } =
+    useTypingStore();
 
-  const timeElapsed = timerDuration - timeRemaining;
   const wpm = calculateWPM(correctCharCount, timeElapsed);
   const accuracy = calculateAccuracy(correctCharCount, totalKeystrokes);
 

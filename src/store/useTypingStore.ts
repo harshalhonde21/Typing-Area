@@ -3,13 +3,18 @@ import { calculateWPM, calculateAccuracy, generateText } from '@/lib/utils'; // 
 
 interface TypingState {
   status: 'idle' | 'running' | 'finished';
+  testMode: 'time' | 'words';
   text: string;
   userInput: string;
   caretPosition: number;
 
-  // Timer
+  // Settings
   timerDuration: number; // 15, 30, 60
+  wordCount: number; // 10, 25, 50, 100
+
+  // Dynamic
   timeRemaining: number;
+  timeElapsed: number;
 
   // Stats
   correctCharCount: number;
@@ -17,33 +22,43 @@ interface TypingState {
   totalKeystrokes: number;
 
   // Actions
-  setText: (mode?: 'words' | 'quote') => void;
+  setMode: (mode: 'time' | 'words') => void;
+  setDuration: (duration: number) => void;
+  setWordCount: (count: number) => void;
   startTest: () => void;
   resetTest: () => void;
   finishTest: () => void;
   handleInput: (input: string) => void;
-  tickTimer: (timeLeft: number) => void;
-  setDuration: (duration: number) => void;
+  tickTimer: (timeLeft: number, elapsed: number) => void;
 }
 
 export const useTypingStore = create<TypingState>((set, get) => ({
   status: 'idle',
+  testMode: 'time',
   text: '',
   userInput: '',
   caretPosition: 0,
   timerDuration: 60,
+  wordCount: 25,
   timeRemaining: 60,
+  timeElapsed: 0,
   correctCharCount: 0,
   errorCharCount: 0,
   totalKeystrokes: 0,
 
-  setText: (mode = 'words') => {
-    const newText = generateText(mode, 50); // Generate enough words
-    set({ text: newText, userInput: '', caretPosition: 0 });
+  setMode: (mode) => {
+    set({ testMode: mode });
+    get().resetTest();
   },
 
   setDuration: (duration) => {
-    set({ timerDuration: duration, timeRemaining: duration });
+    set({ timerDuration: duration, testMode: 'time' });
+    get().resetTest();
+  },
+
+  setWordCount: (count) => {
+    set({ wordCount: count, testMode: 'words' });
+    get().resetTest();
   },
 
   startTest: () => {
@@ -51,14 +66,18 @@ export const useTypingStore = create<TypingState>((set, get) => ({
   },
 
   resetTest: () => {
-    const { timerDuration } = get();
-    const newText = generateText('words', 50);
+    const { testMode, timerDuration, wordCount } = get();
+    // Generate text based on mode
+    const countToGen = testMode === 'words' ? wordCount : 100;
+
+    const newText = generateText('words', countToGen);
     set({
       status: 'idle',
       text: newText,
       userInput: '',
       caretPosition: 0,
-      timeRemaining: timerDuration,
+      timeRemaining: testMode === 'time' ? timerDuration : 0,
+      timeElapsed: 0,
       correctCharCount: 0,
       errorCharCount: 0,
       totalKeystrokes: 0,
@@ -69,13 +88,19 @@ export const useTypingStore = create<TypingState>((set, get) => ({
     set({ status: 'finished' });
   },
 
-  tickTimer: (timeLeft) => {
-    const { status, finishTest } = get();
+  tickTimer: (timeLeft, elapsed) => {
+    const { status, finishTest, testMode } = get();
     if (status === 'finished') return;
 
-    set({ timeRemaining: timeLeft });
-    if (timeLeft <= 0) {
-      finishTest();
+    if (testMode === 'time') {
+      set({ timeRemaining: timeLeft, timeElapsed: elapsed });
+      if (timeLeft <= 0) {
+        finishTest();
+      }
+    } else {
+      // In stopwatch mode, timeLeft from worker IS the elapsed time (as per worker update)
+      // actually worker sends real elapsed too.
+      set({ timeElapsed: elapsed, timeRemaining: elapsed });
     }
   },
 
@@ -87,15 +112,12 @@ export const useTypingStore = create<TypingState>((set, get) => ({
       startTest();
     }
 
-    // Limit input length to text length
     if (input.length > text.length) {
       return;
     }
 
-    // Calculate stats incrementally
     let correct = 0;
     let errors = 0;
-    // Simple calc for now, for real-time highlighting we need per-char check in UI
     for (let i = 0; i < input.length; i++) {
       if (input[i] === text[i]) correct++;
       else errors++;
@@ -109,7 +131,6 @@ export const useTypingStore = create<TypingState>((set, get) => ({
       totalKeystrokes: totalKeystrokes + 1,
     });
 
-    // Auto-finish if end of text reached
     if (input.length === text.length) {
       finishTest();
     }

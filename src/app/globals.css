@@ -62,26 +62,56 @@ body {
 }
 
 @utility glass-panel {
-  background: var(--color-punk-surface);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  background: rgba(10, 10, 15, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 243, 255, 0.15);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.37),
+    inset 0 0 20px rgba(0, 243, 255, 0.05); /* Subtle inner glow */
 }
 
 @utility text-glow-cyan {
   text-shadow:
-    0 0 5px var(--color-punk-cyan),
-    0 0 10px var(--color-punk-cyan);
+    0 0 10px var(--color-punk-cyan),
+    0 0 20px var(--color-punk-cyan),
+    0 0 40px var(--color-punk-cyan); /* Multi-layer glow */
 }
 
 @utility text-glow-magenta {
   text-shadow:
-    0 0 5px var(--color-punk-magenta),
-    0 0 10px var(--color-punk-magenta);
+    0 0 10px var(--color-punk-magenta),
+    0 0 20px var(--color-punk-magenta),
+    0 0 40px var(--color-punk-magenta);
 }
 
 @utility border-glow-cyan {
   box-shadow:
-    0 0 5px var(--color-punk-cyan),
-    inset 0 0 5px var(--color-punk-cyan);
+    0 0 10px var(--color-punk-cyan),
+    inset 0 0 10px var(--color-punk-cyan);
+}
+
+/* Animations */
+@keyframes flicker {
+  0%,
+  19.999%,
+  22%,
+  62.999%,
+  64%,
+  64.999%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  21.999%,
+  63%,
+  63.999%,
+  65%,
+  69.999% {
+    opacity: 0.8;
+  }
+}
+
+@utility neon-flicker {
+  animation: flicker 3s infinite alternate;
 }

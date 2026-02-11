@@ -11,13 +11,13 @@ export default function ResultsModal() {
     correctCharCount,
     errorCharCount,
     totalKeystrokes,
-    timerDuration,
+    timeElapsed,
     resetTest,
   } = useTypingStore();
 
   if (status !== "finished") return null;
 
-  const wpm = calculateWPM(correctCharCount, timerDuration); // Full duration used for final Calc? Or actual time elapsed if finished early?
+  const wpm = calculateWPM(correctCharCount, timeElapsed); // Full duration used for final Calc? Or actual time elapsed if finished early?
   // Ideally track actual duration. For now assume full duration if time ran out, or we need to track `endTime`.
   // Let's stick to timerDuration for simplicity if time ran out. If finished earlier (completed text), we might need `timeRemaining`.
   // But `timerDuration` is "safe" for fixed time mode.

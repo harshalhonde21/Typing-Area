@@ -2,7 +2,7 @@
 
 // Define the messages that can be sent to/from the worker
 type TimerMessage =
-  | { type: 'START'; duration: number }
+  | { type: 'START'; duration?: number; mode?: 'timer' | 'stopwatch' }
   | { type: 'STOP' }
   | { type: 'RESET' };
 
@@ -13,6 +13,7 @@ type WorkerMessage =
 let timerId: ReturnType<typeof setInterval> | null = null;
 let startTime: number | null = null;
 let duration = 60;
+let mode: 'timer' | 'stopwatch' = 'timer';
 
 self.onmessage = (e: MessageEvent<TimerMessage>) => {
   const { type } = e.data;
@@ -20,20 +21,26 @@ self.onmessage = (e: MessageEvent<TimerMessage>) => {
   switch (type) {
     case 'START':
       if (timerId) clearInterval(timerId);
-      if ('duration' in e.data) {
-        duration = e.data.duration;
-      }
+      if (e.data.mode) mode = e.data.mode;
+      if (typeof e.data.duration === 'number') duration = e.data.duration;
+
       startTime = Date.now();
 
       timerId = setInterval(() => {
         if (!startTime) return;
         const now = Date.now();
         const elapsed = Math.floor((now - startTime) / 1000);
-        const timeLeft = Math.max(0, duration - elapsed);
+
+        let timeLeft = 0;
+        if (mode === 'timer') {
+          timeLeft = Math.max(0, duration - elapsed);
+        } else {
+          timeLeft = elapsed; // In stopwatch mode, timeLeft acts as elapsed for display
+        }
 
         self.postMessage({ type: 'TICK', timeLeft, elapsed } as WorkerMessage);
 
-        if (timeLeft === 0) {
+        if (mode === 'timer' && timeLeft === 0) {
           if (timerId) clearInterval(timerId);
           self.postMessage({ type: 'DONE' } as WorkerMessage);
         }
